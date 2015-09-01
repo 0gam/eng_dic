@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>영어 받아쓰기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<style>
+#dictation_data {width:100%;height:200px}
+.mO {color:#f00;text-decoration:underline}
+.mOX {color:#f00}
+.mX {color:#00f}
+#dictation_problem {line-height:1.3em;font-family:"sans-serif";font-size:1.5em}
+#dictation_problem input[type=text] {border-color:#aaa;border-style:solid;border-width:1px;text-align:center;height:1.3em;font-family:"sans-serif";font-size:1em;margin-top:.1em}
+#dictation_problem input[type=text]:focus {outline:none;border-color:#f00}
+#dictation_problem input[type=text].in_end {border-width:0 0 1px 0;color:#00f;border-color:#00f}
+::-webkit-input-placeholder {text-align:center;font-size:1.1em;font-family:serif;color:#999}
+</style>
+<script>
+  var blankChr = "*"
+    , blank = (new Array(10)).join(blankChr)
+    , blankReg = new RegExp("\\"+blankChr, "g");
+
+var dictation = {
+  boxreg:/\[{2}([\w ]+)\]{2}/g
+  ,generator:function(){
+    var textData = document.getElementById("dictation_data").value
+      ,idx=0;
+    
+    textData = textData.replace(this.boxreg,function($0,$1){
+      return '<input type="text" maxlength="'+ ($1.length+1) +'" size="'+ $1.length +'" value="" placeholder="'+ ("①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮".slice(idx,++idx))  +'">'
+    })
+  
+    document.getElementById("dictation_problem").innerHTML = textData;
+  }
+  ,marking:function(){
+    var textData = document.getElementById("dictation_data").value
+      ,arrInputBox = document.getElementById("dictation_problem").getElementsByTagName("INPUT")
+      ,idx = 0
+      ,arrMarkingSpan = [];
+    
+    while ((word = this.boxreg.exec(textData))!=null){
+      inputBox = arrInputBox[idx++];
+
+      text = inputBox.value.replace(blankReg,"");
+      var markingSpan = document.createElement("span");
+      if(text == word[1]){
+        markingSpan.innerText = text;
+        markingSpan.className = "mO";
+      } else {
+        // word[1].slice(0,word[1].length-text.length).replace(/\w/g," ") 덜쓴 만큼 공백 줄 때 사용
+        markingSpan.innerHTML = '<del class="mX">'+text+'</del>'+ ((text.length>0)?" ":"") +'<span class="mOX">'+ word[1] +'</span>';
+        markingSpan.className = (text == word)?"mO":"mX";
+      }
+      
+      arrMarkingSpan.push(markingSpan);
+    }
+    
+    for(idx--;idx>=0;idx--){
+      document.getElementById("dictation_problem").replaceChild(arrMarkingSpan[idx], arrInputBox[idx]);
+    }
+
+  }
+}
+
+$(function(){
+
+
+  var starAdd = function(e){
+    var cStart = this.selectionStart;
+      
+    var inputTxt = this.value.replace(blankReg,"");
+    var inLen = inputTxt.length;
+    if(inLen < this.size){
+      // this.value 값은 keyup이 발생해야 갱신된다.
+      var starLen = this.size;
+      //if(e.type!="focus") inLen++
+      if(inLen > 0) starLen -= inLen
+      this.value = inputTxt + blank.slice(0, starLen)
+      
+      if(cStart < inLen){
+        this.setSelectionRange(cStart,cStart);
+        console.log(cStart)
+      } else {
+        this.setSelectionRange(inLen,inLen);
+      }
+    }
+  }
+
+  // 입력 처리
+  $('#dictation_problem')
+  .on('keyup','INPUT',function(e){
+    //console.log(e.which)
+    var inputTxt = this.value.replace(blankReg,"");
+    if(e.which >= 65 && e.which <= 122 && inputTxt.length >= this.size){
+      this.value = inputTxt;
+      $(this).next('INPUT').focus();
+    }
+  })
+  .on('keydown','INPUT',function(e){
+    //console.log(e.which)
+    switch(e.which){
+    case 37: case 39:
+      return;
+      break;
+    default:
+      var oThis = this
+      // keyup 이벤트 받기 위해 지연시킴
+      void window.setTimeout(function(){
+        starAdd.call(oThis,e);
+      },5)
+    }
+  })
+  .on('focus','INPUT',function(e){
+    this.className = "";
+    starAdd.call(this,e);
+  })
+  .on('compositionupdate','INPUT',function(e){ //http://www.w3.org/TR/DOM-Level-3-Events/#handwriting
+    starAdd.call(this,e);
+  })
+  .on('blur','INPUT',function(e){
+    var obj = this;
+    var inputTxt = obj.value.replace(blankReg,"");
+    if(inputTxt=="") obj.value = "";
+    obj.className = (inputTxt.length >= obj.size)?"in_end":"";
+  });
+});
+</script>
+</head>
+<body>
+
+<pre id="dictation_problem"></pre>
+<pre id="dictation_marking"></pre>
+
+<button onclick="dictation.generator()">변환</button> <button onclick="dictation.marking()">채점</button> 
+
+<textarea id="dictation_data">It is [[spring]]. Grandpa plants some seeds. He [[waters]] the seeds.
+The seeds grow and grow.
+"[[What]] is this?"
+"It's a big  [[turnip]]!"
+Grandpa is [[surprised]]. Grandpa wants to pull the big turnip. 
+But Grandpa can't pull it up. Grandpa [[calls]]  Grandma.
+"Come here! [[Help]]  me, please!"
+"Okay."
+[[Grandma]]  is surprised.
+"Wow! Big turnip."
+Grandma pulls Grandpa. Grandpa [[pulls]]  the big turnip. But they can't pull it up. 
+[[They]] call Kelly.</textarea>
+
+<script>
+dictation.generator();
+</script>
+</body>
+</html>
